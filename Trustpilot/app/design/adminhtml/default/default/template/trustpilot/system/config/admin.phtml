@@ -1,0 +1,52 @@
+<style>
+    .entry-edit-head {
+        display: none;
+    }
+    .content-header {
+        display: none;
+    }
+    #trustpilot_trustpilot_general_group {
+        border: none;
+        background: none;
+        padding: 0;
+    }
+    #content {
+        padding: 0;
+    }
+</style>
+<script>
+    var websiteId = "<?php echo $this->getWebsiteId(); ?>";
+    var storeId = "<?php echo $this->getStoreId(); ?>";
+    var ajaxUrl = "<?php echo Mage::helper("adminhtml")->getUrl("trustpilot/adminhtml_trustpilot/ajax"); ?>";
+</script>
+<div class='wrap'>
+    <iframe
+        src='<?php echo $this->getIntegrationAppUrl(); ?>'
+        id='configuration_iframe'
+        frameborder='0'
+        scrolling='no'
+        width='100%'
+        height='1400px'
+        data-plugin-version='<?php echo Trustpilot_Reviews_Model_Config::TRUSTPILOT_PLUGIN_VERSION ?>'
+        data-source='Magento1'
+        data-version='<?php echo 'Magento1-'. Mage::getVersion() ?>'
+        data-page-urls='<?php echo $this->_helper->getPageUrls(); ?>'
+        data-transfer='<?php echo $this->getIntegrationAppUrl(); ?>'
+        data-past-orders='<?php echo $this->getPastOrdersInfo(); ?>'
+        data-settings='<?php echo $this->getSettings(); ?>'
+        data-product-identification-options = '<?php echo $this->getProductIdentificationOptions(); ?>'
+        data-is-from-marketplace = '<?php echo Trustpilot_Reviews_Model_Config::TRUSTPILOT_IS_FROM_MARKETPLACE ?>'
+        onload='sendSettings();sendPastOrdersInfo();'>
+    </iframe>
+    <div id='trustpilot-trustbox-preview'
+        hidden='true'
+        data-page-urls='<?php echo $this->_helper->getPageUrls(); ?>'
+        data-custom-trustboxes='<?php echo $this->getCustomTrustBoxes(); ?>'
+        data-settings='<?php echo $this->getSettings(); ?>'
+        data-source='Magento1'
+        data-sku='<?php echo $this->getSku(); ?>'
+        data-name='<?php echo $this->getProductName(); ?>'
+    >
+    </div>
+    <script src='<?php echo Trustpilot_Reviews_Model_Config::TRUSTPILOT_TRUSTBOX_PREVIEW_URL ?>' id='TrustBoxPreviewComponent'></script>
+</div>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<layout version="1.0.0">
+    <default>
+        <reference name="head">
+            <block type="trustpilot/header" name="trustpilot_header_script" template="trustpilot/header.phtml"></block>
+            <block type="trustpilot/trustbox" name="trustpilot_trustbox_script" template="trustpilot/trustbox.phtml"></block>
+        </reference>
+    </default>
+    <checkout_onepage_success>
+        <reference name="before_body_end">
+            <block type="trustpilot/success"
+                   name="trustpilot_success"
+                   template="trustpilot/success.phtml" />
+        </reference>
+    </checkout_onepage_success>
+</layout>
