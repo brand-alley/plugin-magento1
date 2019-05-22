@@ -18,11 +18,11 @@ class Trustpilot_Reviews_Model_ConfigObserver
         $this->_apiClient->postSettings($key, $origin, $settings);
     }
 
-    public function getSettings() 
+    public function getSettings()
     {
         $globalSettings = new \stdClass();
         $globalSettings->source         = 'Magento1';
-        $globalSettings->pluginVersion  = '2.5.426';
+        $globalSettings->pluginVersion  = '2.5.516';
         $globalSettings->version = 'Magento-' . Mage::getVersion();
         $globalSettings->stores = array();
         foreach (Mage::app()->getWebsites() as $website) {
@@ -40,14 +40,14 @@ class Trustpilot_Reviews_Model_ConfigObserver
                     $general->currentUrl     = base64_encode($store->getCurrentUrl());
                     $general->websiteId      = $website->getId();
                     $general->websiteName    = $website->getName();
-            
+
                     $trustbox = new \stdClass();
                     $trustbox->enabled  = trim($this->_helper->getTrustboxConfigValueByStore('trustpilot_trustbox', $store->getId()));
                     $trustbox->snippet  = base64_encode(trim($this->_helper->getTrustboxConfigValueByStore('trustpilot_code_snippet', $store->getId())));
                     $trustbox->position = trim($this->_helper->getTrustboxConfigValueByStore('trustpilot_position', $store->getId()));
                     $trustbox->xpath    = base64_encode(trim($this->_helper->getTrustboxConfigValueByStore('trustpilot_trustbox_xpath', $store->getId())));
                     $trustbox->page     = trim($this->_helper->getTrustboxConfigValueByStore('trustpilot_trustbox_page', $store->getId()));
-            
+
                     $settings = new \stdClass();
                     $settings->general = $general;
                     $settings->trustbox = $trustbox;

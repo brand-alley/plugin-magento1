@@ -1,5 +1,5 @@
 <script type="text/javascript" async>
-	var w = document.createElement("script");
+    var w = document.createElement("script");
     w.type = "text/javascript";
     w.src = "<?php echo $this->getWidgetScriptUrl(); ?>";
     w.async = true;
@@ -12,41 +12,55 @@
 	tp('register','<?php echo $this->getInstallationKey(); ?>');
 </script>
 <script type="text/javascript">
-	function inIframe () {
-		try {
-			return window.self !== window.top;
-		} catch (e) {
-			return false;
-		}
-	}
+    function inIframe() {
+        try {
+            return window.self !== window.top;
+        } catch (e) {
+            return false;
+        }
+    }
 
-	if (inIframe()) {
-		window.addEventListener('message', function(e) {
-			var adminOrign = new URL(window.location).hostname;
-			if (!e.data || e.origin.indexOf(adminOrign) === -1) {
-				return;
-			}
-			if (typeof TrustpilotPreview !== 'undefined') {
-				if (typeof e.data === 'string' && e.data === 'submit') {
-					TrustpilotPreview.sendTrustboxes();
-				} else {
-					jsonData = JSON.parse(e.data);
-					if (jsonData.trustbox) {
-						TrustpilotPreview.setSettings(jsonData.trustbox);
-					} else if (jsonData.customised) {
-						TrustpilotPreview.updateActive(jsonData.customised);
-					}
-				}
-			} else {
-				var p = document.createElement("script");
-				p.type = "text/javascript";
-				p.onload = function () {
-					const iFrame = e.source.parent.document.getElementById('configuration_iframe').contentWindow;
-					TrustpilotPreview.init(['<?php echo $this->getPreviewCssUrl(); ?>'], JSON.parse(e.data), iFrame, e.source);
-				};
-				p.src = '<?php echo $this->getPreviewScriptUrl(); ?>';
-				document.head.appendChild(p);
-			}
-		});
-	}
+    function tryParseJson(str) {
+        if (typeof str === 'string') {
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    if (inIframe()) {
+        window.addEventListener('message', function (e) {
+            var adminOrign = new URL(window.location).hostname;
+            if (!e.data || e.origin.indexOf(adminOrign) === -1) {
+                return;
+            }
+            if (typeof TrustpilotPreview !== 'undefined') {
+                if (typeof e.data === 'string' && e.data === 'submit') {
+                    TrustpilotPreview.sendTrustboxes();
+                } else {
+                    jsonData = JSON.parse(e.data);
+                    if (jsonData.trustbox) {
+                        TrustpilotPreview.setSettings(jsonData.trustbox);
+                    } else if (jsonData.customised) {
+                        TrustpilotPreview.updateActive(jsonData.customised);
+                    }
+                }
+            } else {
+                var settings = tryParseJson(e.data);
+                if (settings) {
+                    var p = document.createElement("script");
+                    p.type = "text/javascript";
+                    p.onload = function () {
+                        const iFrame = e.source.parent.document.getElementById('configuration_iframe').contentWindow;
+                        TrustpilotPreview.init(['<?php echo $this->getPreviewCssUrl(); ?>'], settings, iFrame, e.source);
+                    };
+                    p.src = '<?php echo $this->getPreviewScriptUrl(); ?>';
+                    document.head.appendChild(p);
+                }
+            }
+        });
+    }
 </script>

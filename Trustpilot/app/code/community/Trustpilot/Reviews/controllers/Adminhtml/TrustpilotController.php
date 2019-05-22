@@ -11,11 +11,13 @@
         private $_integrationAppUrl;
         private $_pluginUrl;
         private $_pluginVersion;
+        private $_products;
 
         protected function _construct()
         {
             parent::_construct();
             $this->_helper = Mage::helper('trustpilot/Data');
+            $this->_products = Mage::helper('trustpilot/Products');
             $this->_pastOrders = Mage::helper('trustpilot/PastOrders');
             $this->_updater = Mage::helper('trustpilot/Updater');
             $this->_integrationAppUrl = Trustpilot_Reviews_Model_Config::TRUSTPILOT_INTEGRATION_APP_URL;
@@ -43,6 +45,7 @@
                         'StartingUrl' => $this->getStartingUrl(),
                         'Sku' => $this->getSku(),
                         'ProductName' => $this->getProductName(),
+                        'ConfigurationScopeTree' => $this->getConfigurationScopeTree()
                     )
                 )
                 ->setTemplate(static::CODE_TEMPLATE);
@@ -109,40 +112,27 @@
                     );
                     $this->_updater->trustpilotGetPlugins($plugins);
                     break;
-                case 'reload_trustpilot_settings';
+                case 'reload_trustpilot_settings':
                     $info = new stdClass();
                     $info->pluginVersion = $this->_pluginVersion;
                     $info->basis = 'plugin';
                     $this->getResponse()->setBody(json_encode($info));
                     break;
+                case 'check_product_skus':
+                    $result = new stdClass();
+                    $result->skuScannerResults = $this->_products->checkSkus($post["skuSelector"]);
+                    $this->getResponse()->setBody(json_encode($result));
+                    break;
             }
+        }
+
+        private function getConfigurationScopeTree() {
+            return base64_encode(json_encode($this->_helper->getConfigurationScopeTree()));
         }
 
         private function getProductIdentificationOptions()
         {
-            $fields = array('none', 'sku', 'id');
-            $optionalFields = array('upc', 'isbn', 'mpn', 'gtin', 'brand', 'manufacturer');
-            $attrs = array_map(function ($t) { return $t; }, $this->getAttributes());
-
-            foreach ($attrs as $attr) {
-                foreach ($optionalFields as $field) {
-                    if ($attr == $field && !in_array($field, $fields)) {
-                        array_push($fields, $field);
-                    }
-                }
-            }
-
-            return json_encode($fields);
-        }
-
-        private function getAttributes()
-        {
-            $attr = array();
-            $productAttrs = Mage::getResourceModel('catalog/product_attribute_collection');
-            foreach ($productAttrs as $_productAttr) {
-                array_push($attr, $_productAttr->getAttributeCode());
-            }
-            return $attr;
+           return $this->_helper->getProductIdentificationOptions();
         }
 
         private function getIntegrationAppUrl()

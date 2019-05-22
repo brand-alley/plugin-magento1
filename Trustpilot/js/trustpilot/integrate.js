@@ -26,6 +26,12 @@ function receiveSettings(e) {
         action['action'] = 'handle_past_orders';
         action['issynced'] = 'issynced';
         this.submitPastOrdersCommand(action);
+    } else if (data.startsWith('check_product_skus')) {
+        const split = data.split(':');
+        const action = {};
+        action['action'] = 'check_product_skus';
+        action['skuSelector'] = split[1];
+        this.submitCheckProductSkusCommand(action);
     } else if (data === 'update') {
         updateplugin();
     } else if (data === 'reload') {
@@ -92,6 +98,24 @@ function submitPastOrdersCommand(data) {
                 console.log(`callback error: ${xhr.response} ${xhr.status}`);
             } else {
                 sendPastOrdersInfo(xhr.response);
+            }
+        }
+    };
+    xhr.send(encodeSettings(data));
+}
+
+function submitCheckProductSkusCommand(data) {
+    data['form_key'] = window.FORM_KEY;
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', ajaxUrl, true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            if (xhr.status >= 400) {
+                console.log(`callback error: ${xhr.response} ${xhr.status}`);
+            } else {
+                const iframe = document.getElementById('configuration_iframe');
+                iframe.contentWindow.postMessage(xhr.response, iframe.dataset.transfer);
             }
         }
     };
@@ -197,6 +221,7 @@ function sendSettings() {
     settings.basis = 'plugin';
     settings.productIdentificationOptions = JSON.parse(attrs.productIdentificationOptions);
     settings.isFromMarketplace = attrs.isFromMarketplace;
+    settings.configurationScopeTree = JSON.parse(atob(attrs.configurationScopeTree));
 
     if (settings.trustbox.trustboxes && attrs.sku) {
         for (trustbox of settings.trustbox.trustboxes) {

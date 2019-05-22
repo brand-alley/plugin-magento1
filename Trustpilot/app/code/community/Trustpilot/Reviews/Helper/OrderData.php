@@ -8,7 +8,7 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
         $this->_helper = Mage::helper('trustpilot/Data');
     }
 
-    public function getInvitation($order, $hook, $collect_product_data = Trustpilot_Reviews_Model_Config::WITH_PRODUCT_DATA) 
+    public function getInvitation($order, $hook, $collect_product_data = Trustpilot_Reviews_Model_Config::WITH_PRODUCT_DATA, $store = null) 
     {
         $invitation = null;
         if (!is_null($order)) {
@@ -26,6 +26,7 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
                 $invitation['products'] = $products;
                 $invitation['productSkus'] = $this->getSkus($products);
             }
+            $invitation['templateParams'] = $this->_helper->getIdsByStore($store);
         }
         return $invitation;
     }
@@ -99,20 +100,40 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
             $skuSelector = $settings->skuSelector;
             $gtinSelector = $settings->gtinSelector;
             $mpnSelector = $settings->mpnSelector;
-        
+            $currency = $order->getOrderCurrencyCode();
             $items = $order->getAllVisibleItems();
             foreach ($items as $i) {
                 $product = Mage::getModel('catalog/product')->load($i->getProductId());
-                $manufacturer = $this->_helper->loadSelector($product, 'manufacturer');
-                $sku = $this->_helper->loadSelector($product, $skuSelector);
-                $mpn = $this->_helper->loadSelector($product, $mpnSelector);
-                $gtin = $this->_helper->loadSelector($product, $gtinSelector);
+
+                $childProducts = array();
+                if ($i->getHasChildren()) {
+                    $orderChildItems = $i->getChildrenItems();
+                    foreach ($orderChildItems as $item) {
+                        array_push($childProducts, $item->getProduct());
+                    }
+                }
+                $manufacturer = $this->_helper->loadSelector($product, 'manufacturer', $childProducts);
+                $sku = $this->_helper->loadSelector($product, $skuSelector, $childProducts);
+                $mpn = $this->_helper->loadSelector($product, $mpnSelector, $childProducts);
+                $gtin = $this->_helper->loadSelector($product, $gtinSelector, $childProducts);
                 array_push(
                     $products,
                     array(
-                        'productUrl' => $product->getProductUrl(),
-                        'name' => $product->getName(),
-                        'brand' => $manufacturer ? $manufacturer : '',
+                        'price' => $product->getFinalPrice() ?: 0,
+                        'currency' => $currency,
+                        'categories' => $this->getProductCategories($product, $childProducts),
+                        'description' => strip_tags($product->getDescription()) ?: '',
+                        'images' => $this->getAllImages($product, $childProducts),
+                        'tags' => $this->getAllTags($product, $childProducts),
+                        'meta' => array(
+                            'title' => $product->getMetaTitle() ?: $product->getName(),
+                            'keywords' => $product->getMetaKeyword() ?: $product->getName(),
+                            'description' => $product->getMetaDescription() ?: substr(strip_tags($product->getDescription()), 0, 255),
+                        ),
+                        'manufacturer' => $manufacturer ?: '',
+                        'productUrl' => $product->getProductUrl() ?: '',
+                        'name' => $product->getName() ?: '',
+                        'brand' => $product->getBrand() ? $product->getBrand() : $manufacturer,
                         'sku' => $sku ? $sku : '',
                         'mpn' => $mpn ? $mpn : '',
                         'gtin' => $gtin ? $gtin : '',
@@ -127,5 +148,76 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
         }
 
         return $products;
+    }
+
+    function getProductCategories($product, $childProducts = null) {
+        $categories = array();
+        $categoryIds = array();
+
+        if (!empty($childProducts)) {
+            foreach ($childProducts as $childProduct) {
+                $childCategoryIds = $childProduct->getCategoryIds();
+                if (!empty($childCategoryIds)) {
+                    $categoryIds = array_merge($categoryIds, $childCategoryIds);
+                }
+            }
+        } else {
+            $categoryIds = $product->getCategoryIds();
+        }
+
+        foreach ($categoryIds as $id) {
+            $category = Mage::getModel('catalog/category')->load($id) ;
+            array_push($categories, $category->getName());
+        }
+
+        return $categories;
+    }
+
+    function getAllImages($product, $childProducts = null) {
+        $images = array();
+
+        if (!empty($childProducts)) {
+            foreach ($childProducts as $childProduct) {
+                foreach ($childProduct->getMediaGalleryImages() as $image) {
+                    array_push($images, $image->getUrl());
+                }
+            }
+        }
+
+        foreach ($product->getMediaGalleryImages() as $image) {
+            array_push($images, $image->getUrl());
+        }
+
+        return $images;
+    }
+
+    function getAllTags($product, $childProducts = null) {
+        $tagArray = $this->getTags($product);
+
+        if (!empty($childProducts)) {
+            foreach ($childProducts as $childProduct) {
+                $tagArray = array_merge($tagArray, $this->getTags($childProduct));
+            }
+        }
+        
+        return $tagArray;
+    }
+
+    function getTags($product) {
+        $tagArray = array();
+        $model = Mage::getModel('tag/tag');
+        $tagCollection= $model->getResourceCollection()
+                ->addPopularity()
+                ->addStatusFilter($model->getApprovedStatus())
+                ->addProductFilter($product->getId())
+                ->setFlag('relation', true)
+                ->addStoreFilter(Mage::app()->getStore()->getId())
+                ->setActiveFilter()
+                ->load();
+        $tags=$tagCollection->getItems();
+        foreach ($tags as $tag) {
+            array_push($tagArray, $tag->getName());
+        }
+        return $tagArray;
     }
 }

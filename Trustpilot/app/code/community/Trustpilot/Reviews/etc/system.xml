@@ -29,18 +29,11 @@
                         <master_settings_field>
                             <sort_order>1</sort_order>
                             <frontend_type>text</frontend_type>
-                            <show_in_default>0</show_in_default>
-                            <show_in_website>0</show_in_website>
-                            <show_in_store>0</show_in_store>
-                        </master_settings_field>
-                        <trustpilot_admin>
-                            <sort_order>1</sort_order>
-                            <frontend_type>text</frontend_type>
                             <frontend_model>trustpilot/adminhtml_system_config_form_admin</frontend_model>
                             <show_in_default>0</show_in_default>
                             <show_in_website>1</show_in_website>
                             <show_in_store>1</show_in_store>
-                        </trustpilot_admin>
+                        </master_settings_field>
                         <defaultMessage>
                             <frontend_type>label</frontend_type>
                             <sort_order>1</sort_order>

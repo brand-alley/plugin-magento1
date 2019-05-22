@@ -1,7 +1,7 @@
 <script>
-    var ajaxUrl = "<?php echo Mage::helper("adminhtml")->getUrl("trustpilot/adminhtml_trustpilot/ajax"); ?>";
+    var ajaxUrl = "<?php echo Mage::helper("adminhtml")->getUrl("/trustpilot/ajax"); ?>";
 </script>
-<div class='wrap'>
+<div class='wrap' tabindex="0">
     <iframe
         src='<?php echo $this->data['IntegrationAppUrl']; ?>'
         id='configuration_iframe'
@@ -17,6 +17,7 @@
         data-past-orders='<?php echo $this->data['PastOrdersInfo']; ?>'
         data-settings='<?php echo $this->data['Settings']; ?>'
         data-product-identification-options = '<?php echo $this->data['ProductIdentificationOptions']; ?>'
+        data-configuration-scope-tree = '<?php echo $this->data['ConfigurationScopeTree']; ?>'
         data-is-from-marketplace = '<?php echo Trustpilot_Reviews_Model_Config::TRUSTPILOT_IS_FROM_MARKETPLACE ?>'
         onload='sendSettings();sendPastOrdersInfo();'>
     </iframe>

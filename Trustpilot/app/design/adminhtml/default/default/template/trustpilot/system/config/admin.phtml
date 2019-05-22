@@ -17,9 +17,9 @@
 <script>
     var websiteId = "<?php echo $this->getWebsiteId(); ?>";
     var storeId = "<?php echo $this->getStoreId(); ?>";
-    var ajaxUrl = "<?php echo Mage::helper("adminhtml")->getUrl("trustpilot/adminhtml_trustpilot/ajax"); ?>";
+    var ajaxUrl = "<?php echo Mage::helper("adminhtml")->getUrl("/trustpilot/ajax"); ?>";
 </script>
-<div class='wrap'>
+<div class='wrap' tabindex="0">
     <iframe
         src='<?php echo $this->getIntegrationAppUrl(); ?>'
         id='configuration_iframe'
@@ -35,6 +35,7 @@
         data-past-orders='<?php echo $this->getPastOrdersInfo(); ?>'
         data-settings='<?php echo $this->getSettings(); ?>'
         data-product-identification-options = '<?php echo $this->getProductIdentificationOptions(); ?>'
+        data-configuration-scope-tree = '<?php echo $this->getConfigurationScopeTree(); ?>'
         data-is-from-marketplace = '<?php echo Trustpilot_Reviews_Model_Config::TRUSTPILOT_IS_FROM_MARKETPLACE ?>'
         onload='sendSettings();sendPastOrdersInfo();'>
     </iframe>

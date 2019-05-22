@@ -18,16 +18,17 @@ class Trustpilot_Reviews_Model_OrderSaveObserver
             $order = $event->getOrder();
             $orderStatus = $order->getState();
             $storeId = $order->getStoreId();
+            $store = Mage::app()->getStore($storeId);
             $settings = json_decode($this->_helper->getConfig('master_settings_field', $storeId));
             if (isset($settings->general->key)) {
                 $key = $settings->general->key;
-                $data = $this->_orderData->getInvitation($order, 'sales_order_save_after', Trustpilot_Reviews_Model_Config::WITHOUT_PRODUCT_DATA);
+                $data = $this->_orderData->getInvitation($order, 'sales_order_save_after', Trustpilot_Reviews_Model_Config::WITHOUT_PRODUCT_DATA, $store);
 
                 if (in_array($orderStatus, $settings->general->mappedInvitationTrigger)) {
                     $response = $this->_apiClient->postInvitation($key, $data);
 
                     if ($response['code'] == '202') {
-                        $data = $this->_orderData->getInvitation($order, 'sales_order_save_after', Trustpilot_Reviews_Model_Config::WITH_PRODUCT_DATA);
+                        $data = $this->_orderData->getInvitation($order, 'sales_order_save_after', Trustpilot_Reviews_Model_Config::WITH_PRODUCT_DATA, $store);
                         $response = $this->_apiClient->postInvitation($key, $data);
                     }
                     $this->_orderData->handleSingleResponse($response, $data);

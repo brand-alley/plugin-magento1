@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Trustpilot_Reviews>
-            <version>2.5.426</version>
+            <version>#{Octopus.Release.Number}</version>
         </Trustpilot_Reviews>
     </modules>
     <admin>
@@ -68,6 +68,16 @@
                 </observers>
             </sales_order_save_after>
         </events>
+        <resources>
+            <trustpilot_reviews_setup>
+                <setup>
+                    <module>Trustpilot_Reviews</module>
+                </setup>
+                <connection>
+                    <use>core_setup</use>
+                </connection>
+            </trustpilot_reviews_setup>
+        </resources>
     </global>
     <frontend>
         <layout>

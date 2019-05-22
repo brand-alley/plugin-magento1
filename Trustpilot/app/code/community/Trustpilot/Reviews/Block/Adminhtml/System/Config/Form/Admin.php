@@ -53,31 +53,13 @@ class Trustpilot_Reviews_Block_Adminhtml_System_Config_Form_Admin
             return json_encode($info);
     }
 
-    public function getProductIdentificationOptions()
-    {
-        $fields = array('none', 'sku', 'id');
-        $optionalFields = array('upc', 'isbn', 'mpn', 'gtin', 'brand', 'manufacturer');
-        $attrs = array_map(function ($t) { return $t; }, $this->getAttributes());
-
-        foreach ($attrs as $attr) {
-            foreach ($optionalFields as $field) {
-                if ($attr == $field && !in_array($field, $fields)) {
-                    array_push($fields, $field);
-                }
-            }
-        }
-
-        return json_encode($fields);
+    public function getConfigurationScopeTree() {
+        return base64_encode(json_encode($this->_helper->getConfigurationScopeTree()));
     }
 
-    private function getAttributes()
+    public function getProductIdentificationOptions()
     {
-        $attr = array();
-        $productAttrs = Mage::getResourceModel('catalog/product_attribute_collection');
-        foreach ($productAttrs as $_productAttr) {
-            array_push($attr, $_productAttr->getAttributeCode());
-        }
-        return $attr;
+        return $this->_helper->getProductIdentificationOptions();
     }
 
     public function getWebsiteId() {

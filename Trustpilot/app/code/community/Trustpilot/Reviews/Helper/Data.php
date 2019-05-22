@@ -134,33 +134,101 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
         return Mage::app()->getWebsite(self::getWebsiteId())->getDefaultStore()->getId();
     }
 
-    public function loadSelector($product, $selector)
+    public function loadSelector($product, $selector, $childProducts = null)
     {
         switch ($selector) {
             case 'id':
                 return (string) $product->getId();
-            case 'brand':
-            case 'manufacturer':
-            case 'sku':
-            case 'upc':
-            case 'isbn':
-            case 'mpn':                
-            case 'gtin':
-                return $this->loadAttributeValue($product, $selector);
             default:
-                return '';
+                $attrValues = $this->loadOrderChildProducts($childProducts, $selector);
+                if (!empty($attrValues)) {
+                    return implode(',', $attrValues);
+                } else {
+                    return $this->loadAttributeValue($product, $selector);
+                }
         }
     }
 
-    public function getFirstProduct() {
+    private function loadOrderChildProducts($childProducts, $selector)
+    {
+        if (!empty($childProducts)) {
+            $attrValues = array();
+            foreach ($childProducts as $product) {
+                $attrValue = $this->loadAttributeValue($product, $selector);
+                if (!empty($attrValue)) {
+                    array_push($attrValues, $attrValue);
+                }
+            }
+            return $attrValues;
+        }
+        return null;
+    }
+
+    private function loadAttributeValue($product, $selector)
+    {
+        try {
+            if ($attribute = $product->getResource()->getAttribute($selector)) {
+                $data = $product->getData($selector);
+                $label = $attribute->getSource()->getOptionText($data);
+                if (is_array($label)) {
+                    $label = implode(', ', $label);
+                }
+                return $label ? $label : (string) $data;
+            } else {
+                return '';
+            }
+        } catch(\Exception $e) {
+            return '';
+        }
+    }
+
+    public function getFirstProduct($storeId = null) {
+        $storeId = $storeId == null ? $this->getStoreIdOrDefault() : $storeId;
         return Mage::getModel('catalog/product')
             ->getCollection()
+            ->addStoreFilter($storeId)
             ->addAttributeToSelect('name')
             ->addAttributeToFilter('status', 1)
             ->addAttributeToFilter('url_key', array('notnull' => true))
             ->addAttributeToFilter('visibility', array(2, 3, 4))
             ->addUrlRewrite()
             ->getFirstItem();
+    }
+
+    public function getConfigurationScopeTree() {
+        $configurationScopeTree = array();
+        foreach (Mage::app()->getWebsites() as $website) {
+            foreach ($website->getGroups() as $group) {
+                $stores = $group->getStores();
+                foreach ($stores as $store) {
+                    if ($store->getIsActive()) {
+                        $names = array(
+                            'site' => $website->getName(),
+                            'store' => $store->getFrontendName(),
+                            'view' => $store->getName()
+                        );
+                        $config = array(
+                            'ids' => $this->getIdsByStore($store),
+                            'names' => $names,
+                            'domain' => parse_url($store->getBaseUrl(), PHP_URL_HOST),
+                        );
+                        array_push($configurationScopeTree,  $config);
+                    }
+                }
+            }
+        }
+        return $configurationScopeTree;
+    }
+
+    public function getIdsByStore($store = null) {
+        if ($store == null) {
+            $storeId = self::getStoreId();
+            $store = Mage::app()->getStore($storeId);
+        }
+        $ids = array();
+        array_push($ids, $store->getWebsiteId());
+        array_push($ids, $store->getStoreId());
+        return $ids;
     }
 
     public function getPageUrls()
@@ -213,7 +281,7 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
                     ));
                     return  $url;
                 case 'trustpilot_trustbox_product':
-                    return $this->getFirstProduct()
+                    return $this->getFirstProduct($storeId)
                         ->getUrlInStore(array(
                             '_store'=>$storeId
                         ));
@@ -224,17 +292,6 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
             Mage::log('Unable to find URL for a page ' . $value . '. Error: ' . $e->getMessage());
 
             return Mage::getBaseUrl();
-        }
-    }
-
-    private function loadAttributeValue($product, $selector)
-    {
-        if ($attribute = $product->getResource()->getAttribute($selector)) {
-            $data = $product->getData($selector);
-            $label = $attribute->getSource()->getOptionText($data);
-            return $label ? $label : (String) $data;
-        } else {
-            $label = ''; 
         }
     }
 
@@ -249,4 +306,40 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
         );
         Mage::helper('trustpilot/TrustpilotHttpClient')->postLog($log);
     }
+
+    public function getProductIdentificationOptions()
+    {
+        $fields = array('none', 'sku', 'id');
+        $optionalFields = array('upc', 'isbn', 'brand', 'manufacturer');
+        $dynamicFields = array('mpn', 'gtin');
+        $attrs = array_map(function ($t) { return $t; }, $this->getAttributes());
+
+        foreach ($attrs as $attr) {
+            foreach ($optionalFields as $field) {
+                if ($attr == $field && !in_array($attr, $fields)) {
+                    array_push($fields, $attr);
+                    break;
+                }
+            }
+            foreach ($dynamicFields as $field) {             
+                if (stripos($attr, $field) !== false && !in_array($attr, $fields)) {
+                    array_push($fields, $attr);
+                    break;
+                }	                
+            }
+        }
+
+        return json_encode($fields);
+    }
+
+    private function getAttributes()
+    {
+        $attr = array();
+        $productAttrs = Mage::getResourceModel('catalog/product_attribute_collection');
+        foreach ($productAttrs as $_productAttr) {
+            array_push($attr, $_productAttr->getAttributeCode());
+        }
+        return $attr;
+    }
+
 }

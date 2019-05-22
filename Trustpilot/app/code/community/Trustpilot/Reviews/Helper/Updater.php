@@ -18,10 +18,21 @@ class Trustpilot_Reviews_Helper_Updater extends Mage_Core_Helper_Abstract
             if (file_exists($target)) {
                 unlink($target);
             }
+            $config = new Mage_Connect_Config();
+            if (empty($config->magento_root)) {
+                $config->magento_root = $args['path'];
+            }
 
             self::trustpilotPluginDownload($source, $target);
-            self::trustpilotPluginUnpack($args, $target);
-            self::trustpilotPluginActivate($plugin['name']);
+            
+            $package = new Mage_Connect_Package($target);
+            
+            self::trustpilotPluginUnpack($args, $target, $config, $package);
+            self::trustpilotPluginActivate($target, $config, $package);
+            
+            if ($args['trustpilot_preserve_zip'] === false) {
+                unlink($target);	
+            }
         }
     }
 
@@ -36,22 +47,17 @@ class Trustpilot_Reviews_Helper_Updater extends Mage_Core_Helper_Abstract
             return false;
     }
 
-    private static function trustpilotPluginUnpack($args, $target) {
-        $package = new Mage_Connect_Package($target);
-        $config = new Mage_Connect_Config();
-        if (empty($config->magento_root)) {
-            $config->magento_root = $args['path'];
-        }
+    private static function trustpilotPluginUnpack($args, $target, $config, $package) {
         $packager = new Mage_Connect_Packager();
         $packager->processInstallPackage($package, $target, $config);
-
-        if ($args['trustpilot_preserve_zip'] === false) {
-            unlink($target);
-        }
     }
 
-    private static function trustpilotPluginActivate($installer) {
-        Mage::app()->getCache()->deletePackage($chan, $pack);
-        Mage::app()->getCache()->addPackage($package);
+    private static function trustpilotPluginActivate($target, $config, $package) {
+        try{
+            $pChan = $package->getChannel();
+            $config = new Mage_Connect_Singleconfig($config->magento_root . DIRECTORY_SEPARATOR . $config->downloader_path . DIRECTORY_SEPARATOR . 'cache.cfg');
+            $config->deletePackage($pChan, $package);
+            $config->addPackage($package);
+        } catch(Exception $e) {}
     }
 }
