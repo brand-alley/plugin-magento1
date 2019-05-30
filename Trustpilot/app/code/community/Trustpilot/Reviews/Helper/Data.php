@@ -68,7 +68,8 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
     private function getWebsiteConfigWithSql($path)
     {
         $connection = Mage::getModel('core/resource')->getConnection('core_read');
-        $sql = "SELECT * FROM `core_config_data` WHERE `scope` = 'websites' AND `path` = '" . $path . "' AND `scope_id` = " . self::getWebsiteId();
+        $table = $connection->getTableName('core/config_data');
+        $sql = "SELECT * FROM `{$table}` WHERE `scope` = 'websites' AND `path` = '" . $path . "' AND `scope_id` = " . self::getWebsiteId();
         $values = $connection->fetchAll($sql);
         return count($values) ? $values[0]['value'] : false;
     }

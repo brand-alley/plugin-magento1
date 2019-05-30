@@ -13,7 +13,7 @@ class Trustpilot_Reviews_Model_Config
     const TRUSTPILOT_GENERAL_CONFIGURATION      = 'general';
     const TRUSTPILOT_TRUSTBOX_CONFIGURATION     = 'trustbox';
     const TRUSTPILOT_INTEGRATION_KEY            = 'key';
-    const TRUSTPILOT_PLUGIN_VERSION             = '2.5.516';
+    const TRUSTPILOT_PLUGIN_VERSION             = '2.5.518';
     const TRUSTPILOT_SCRIPT                     = 'TrustpilotScriptUrl';
     const TRUSTPILOT_INTEGRATION_APP            = 'IntegrationAppUrl';
     const TRUSTPILOT_WIDGET_SCRIPT              = 'WidgetScriptUrl';
