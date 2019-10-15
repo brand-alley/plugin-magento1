@@ -48,7 +48,7 @@ class Trustpilot_Reviews_Block_Adminhtml_System_Config_Form_Admin
     }
 
     public function getPastOrdersInfo() {
-            $info = $this->_pastOrders->getPastOrdersInfo();
+            $info = $this->_pastOrders->getPastOrdersInfo($this->getWebsiteId(), $this->getStoreId());
             $info['basis'] = 'plugin';
             return json_encode($info);
     }
@@ -76,18 +76,31 @@ class Trustpilot_Reviews_Block_Adminhtml_System_Config_Form_Admin
             if ($product) {
                 $skuSelector = json_decode($this->_helper->getConfig('master_settings_field'))->skuSelector;
                 if ($skuSelector == 'none') $skuSelector = 'sku';
-                return $this->_helper->loadSelector($product, $skuSelector);
+
+                $productId = Trustpilot_Reviews_Model_Config::TRUSTPILOT_PRODUCT_ID_PREFIX . $product->getId();
+                return $this->_helper->loadSelector($product, $skuSelector) . ', ' . $productId;
             }
-        } catch (Exception $exception) {
+        } catch (\Throwable $e) {
+            $this->_helper->log('Error on getting product sku', $e, 'getSku');
+            return '';
+        } catch (\Exception $e) {
+            $this->_helper->log('Error on getting product sku', $e, 'getSku');
             return '';
         }
+
     }
 
     public function getProductName() {
         try {
             return $this->_helper->getFirstProduct()->getName();
+        } catch (Throwable $exception) {
+            return '';
         } catch (Exception $exception) {
             return '';
         }
+    }
+
+    public function getPluginStatus() {
+        return base64_encode($this->_helper->getConfig('plugin_status', $this->getWebsiteId(), $this->getStoreId()));
     }
 }

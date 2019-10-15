@@ -13,11 +13,12 @@ class Trustpilot_Reviews_Model_Config
     const TRUSTPILOT_GENERAL_CONFIGURATION      = 'general';
     const TRUSTPILOT_TRUSTBOX_CONFIGURATION     = 'trustbox';
     const TRUSTPILOT_INTEGRATION_KEY            = 'key';
-    const TRUSTPILOT_PLUGIN_VERSION             = '2.5.518';
+    const TRUSTPILOT_PLUGIN_VERSION             = '2.5.573';
     const TRUSTPILOT_SCRIPT                     = 'TrustpilotScriptUrl';
     const TRUSTPILOT_INTEGRATION_APP            = 'IntegrationAppUrl';
     const TRUSTPILOT_WIDGET_SCRIPT              = 'WidgetScriptUrl';
     const TRUSTPILOT_PREVIEW_SCRIPT             = 'PreviewScriptUrl';
+    const TRUSTPILOT_SENTRY_LOG                 = 'SentryLogUrl';
     const TRUSTPILOT_PREVIEW_CSS                = 'PreviewCssUrl';
     const TRUSTPILOT_PLUGIN_URL                 = 'https://ecommplugins-pluginrepo.trustpilot.com/magento/trustpilot.magento.tgz';
     const TRUSTPILOT_API_URL                    = 'https://invitejs.trustpilot.com/api/';
@@ -28,4 +29,6 @@ class Trustpilot_Reviews_Model_Config
     const TRUSTPILOT_PREVIEW_CSS_URL            = '//ecommplugins-scripts.trustpilot.com/v2.1/css/preview.css';
     const TRUSTPILOT_TRUSTBOX_PREVIEW_URL       = '//ecommplugins-trustboxpreview.trustpilot.com/v1.0/trustboxpreview.js';
     const TRUSTPILOT_IS_FROM_MARKETPLACE        = 'false';
+    const TRUSTPILOT_PRODUCT_ID_PREFIX          = 'TRUSTPILOT_SKU_VALUE_';
+    const TRUSTPILOT_SENTRY_LOG_URL             = '//ecommplugins-scripts.trustpilot.com/js/sentryLog.js';
 }

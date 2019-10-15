@@ -32,35 +32,49 @@
     }
 
     if (inIframe()) {
-        window.addEventListener('message', function (e) {
-            var adminOrign = new URL(window.location).hostname;
-            if (!e.data || e.origin.indexOf(adminOrign) === -1) {
-                return;
-            }
-            if (typeof TrustpilotPreview !== 'undefined') {
-                if (typeof e.data === 'string' && e.data === 'submit') {
-                    TrustpilotPreview.sendTrustboxes();
+        try {
+            window.addEventListener('message', function (e) {
+                var adminOrign = new URL(window.location).hostname;
+                if (!e.data || e.origin.indexOf(adminOrign) === -1) {
+                    return;
+                }
+                if (typeof TrustpilotPreview !== 'undefined') {
+                    if (typeof e.data === 'string' && e.data === 'submit') {
+                        TrustpilotPreview.sendTrustboxes();
+                    } else {
+                        jsonData = JSON.parse(e.data);
+                        if (jsonData.trustbox) {
+                            TrustpilotPreview.setSettings(jsonData.trustbox);
+                        } else if (jsonData.customised) {
+                            TrustpilotPreview.updateActive(jsonData.customised);
+                        }
+                    }
                 } else {
-                    jsonData = JSON.parse(e.data);
-                    if (jsonData.trustbox) {
-                        TrustpilotPreview.setSettings(jsonData.trustbox);
-                    } else if (jsonData.customised) {
-                        TrustpilotPreview.updateActive(jsonData.customised);
+                    var settings = tryParseJson(e.data);
+                    if (settings) {
+                        var p = document.createElement("script");
+                        p.type = "text/javascript";
+                        p.onload = function () {
+                            const iFrame = e.source.parent.document.getElementById('configuration_iframe').contentWindow;
+                            TrustpilotPreview.init(['<?php echo $this->getPreviewCssUrl(); ?>'], settings, iFrame, e.source);
+                        };
+                        p.src = '<?php echo $this->getPreviewScriptUrl(); ?>';
+                        document.head.appendChild(p);
                     }
                 }
+            });
+        }
+        catch (e) {
+            if (typeof logTrustpilotError !== "function") {
+                var script = document.createElement("script");
+                script.src = '<?php echo $this->getSentryUrl(); ?>'
+                script.onload = function() {
+                    logTrustpilotError(e);
+                };
+                document.head.appendChild(script);
             } else {
-                var settings = tryParseJson(e.data);
-                if (settings) {
-                    var p = document.createElement("script");
-                    p.type = "text/javascript";
-                    p.onload = function () {
-                        const iFrame = e.source.parent.document.getElementById('configuration_iframe').contentWindow;
-                        TrustpilotPreview.init(['<?php echo $this->getPreviewCssUrl(); ?>'], settings, iFrame, e.source);
-                    };
-                    p.src = '<?php echo $this->getPreviewScriptUrl(); ?>';
-                    document.head.appendChild(p);
-                }
+                logTrustpilotError(e)
             }
-        });
+        }
     }
 </script>

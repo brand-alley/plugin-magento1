@@ -1,5 +1,13 @@
 window.addEventListener("message", this.receiveSettings);
 
+function JSONParseSafe (json) {
+    try {
+        return JSON.parse(json);
+    } catch (e) {
+        return null;
+    }
+}
+
 function receiveSettings(e) {
     if (e.origin === location.origin){
         return receiveInternalData(e);
@@ -10,6 +18,9 @@ function receiveSettings(e) {
         return;
     }
     const data = e.data;
+    if (typeof data !== 'string') {
+        return;
+    }
     if (data.startsWith('sync:') || data.startsWith('showPastOrdersInitial:')) {
         const split = data.split(':');
         const action = {};
@@ -32,12 +43,12 @@ function receiveSettings(e) {
         action['action'] = 'check_product_skus';
         action['skuSelector'] = split[1];
         this.submitCheckProductSkusCommand(action);
+    } else if (data === 'signup_data') {
+        this.sendSignupData();
     } else if (data === 'update') {
         updateplugin();
     } else if (data === 'reload') {
         reloadSettings();
-    } else if (data && JSON.parse(data).TrustBoxPreviewMode) {
-        TrustBoxPreviewMode(data);
     } else {
         handleJSONMessage(data);
     }
@@ -46,7 +57,7 @@ function receiveSettings(e) {
 function receiveInternalData(e) {
     const data = e.data;
     if (data && typeof data === 'string') {
-        const jsonData = JSON.parse(data);
+        const jsonData = JSONParseSafe(data);
         if (jsonData && jsonData.type === 'updatePageUrls') {
             submitSettings(jsonData);
         }
@@ -57,12 +68,14 @@ function receiveInternalData(e) {
 }
 
 function handleJSONMessage(data) {
-    const parsedData = JSON.parse(data);
-    if (parsedData.window) {
+    const parsedData = JSONParseSafe(data);
+    if (parsedData && parsedData.TrustBoxPreviewMode) {
+        TrustBoxPreviewMode(data);
+    } else if (parsedData && parsedData.window) {
         this.updateIframeSize(parsedData);
-    } else if (parsedData.type === 'submit') {
+    } else if (parsedData && parsedData.type === 'submit') {
         this.submitSettings(parsedData);
-    } else if (parsedData.trustbox) {
+    } else if (parsedData && parsedData.trustbox) {
         const iframe = document.getElementById('trustbox_preview_frame');
         iframe.contentWindow.postMessage(JSON.stringify(parsedData.trustbox), "*");
     }
@@ -89,6 +102,12 @@ function getFormValues(form) {
 
 function submitPastOrdersCommand(data) {
     data['form_key'] = window.FORM_KEY;
+    if (typeof websiteId !== 'undefined') {
+        data.website_id = websiteId;
+    }
+    if (typeof storeId !== 'undefined') {
+        data.store_id = storeId;
+    }
     const xhr = new XMLHttpRequest();
     xhr.open('POST', ajaxUrl, true);
     xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
@@ -122,6 +141,36 @@ function submitCheckProductSkusCommand(data) {
     xhr.send(encodeSettings(data));
 }
 
+function sendSignupData() {
+    const data = {
+        action: 'get_signup_data',
+        form_key: window.FORM_KEY,
+    };
+    
+    if (typeof websiteId !== 'undefined') {
+        data.website_id = websiteId;
+    }
+    if (typeof storeId !== 'undefined') {
+        data.store_id = storeId;
+    }
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', ajaxUrl, true);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4) {
+            if (xhr.status >= 400) {
+                console.log(`callback error: ${xhr.response} ${xhr.status}`);
+            } else {
+                const iframe = document.getElementById('configuration_iframe');
+                const message = JSON.stringify({trustpilot_signup_data: xhr.response});
+                iframe.contentWindow.postMessage(message, iframe.dataset.transfer);
+            }
+        }
+    };
+    xhr.send(encodeSettings(data));
+}
+
 function updateplugin() {
     const data = {
         action: 'update_trustpilot_plugin',
@@ -134,9 +183,9 @@ function updateplugin() {
 }
 
 function TrustBoxPreviewMode(data) {
-    const settings = JSON.parse(data);
+    const settings = JSONParseSafe(data);
     const div = document.getElementById('trustpilot-trustbox-preview');
-    if (settings.TrustBoxPreviewMode.enable) {
+    if (settings && settings.TrustBoxPreviewMode.enable) {
         div.hidden = false;
     } else {
         div.hidden = true;
@@ -222,6 +271,7 @@ function sendSettings() {
     settings.productIdentificationOptions = JSON.parse(attrs.productIdentificationOptions);
     settings.isFromMarketplace = attrs.isFromMarketplace;
     settings.configurationScopeTree = JSON.parse(atob(attrs.configurationScopeTree));
+    settings.pluginStatus = JSON.parse(atob(attrs.pluginStatus));
 
     if (settings.trustbox.trustboxes && attrs.sku) {
         for (trustbox of settings.trustbox.trustboxes) {

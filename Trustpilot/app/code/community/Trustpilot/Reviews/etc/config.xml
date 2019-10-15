@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Trustpilot_Reviews>
-            <version>2.5.518</version>
+            <version>2.5.573</version>
         </Trustpilot_Reviews>
     </modules>
     <admin>
@@ -40,24 +40,6 @@
             </trustpilot>
         </models>
         <events>
-            <admin_system_config_changed_section_trustpilot>
-                <observers>
-                    <Trustpilot_Reviews>
-                        <type>singleton</type>
-                        <class>Trustpilot_Reviews_Model_ConfigObserver</class>
-                        <method>execute</method>
-                    </Trustpilot_Reviews>
-                </observers>
-            </admin_system_config_changed_section_trustpilot>
-            <admin_system_config_changed_section_trustpilot_trustbox>
-                <observers>
-                    <Trustpilot_Reviews>
-                        <type>singleton</type>
-                        <class>Trustpilot_Reviews_Model_ConfigObserver</class>
-                        <method>execute</method>
-                    </Trustpilot_Reviews>
-                </observers>
-            </admin_system_config_changed_section_trustpilot_trustbox>
              <sales_order_save_after>
                 <observers>
                     <sales_order_save_after_trustpilot_reviews>

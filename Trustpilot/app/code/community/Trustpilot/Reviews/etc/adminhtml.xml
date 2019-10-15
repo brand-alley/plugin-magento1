@@ -4,7 +4,7 @@
     <trustpilot translate="title">
       <title>Trustpilot</title>
       <sort_order>400</sort_order>
-      <action>/trustpilot</action>
+      <action>adminhtml/trustpilot</action>
     </trustpilot>
   </menu>
   <acl>
