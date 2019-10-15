@@ -4,9 +4,9 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
 {
     const TRUSTPILOT_SETTINGS = 'trustpilot/trustpilot_general_group/';
 
-    public function getKey($storeId = null)
+    public function getKey($websiteId = null, $storeId = null)
     {
-        return trim(json_decode(self::getConfig('master_settings_field', $storeId))->general->key);
+        return trim(json_decode(self::getConfig('master_settings_field', $websiteId, $storeId))->general->key);
     }
 
     private function getDefaultConfigValues($key)
@@ -33,6 +33,12 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
         $config['past_orders'] = '0';
         $config['failed_orders'] = '{}';
         $config['custom_trustboxes'] = '{}';
+        $config['plugin_status'] = json_encode(
+            array(
+                'pluginStatus' => 200,
+                'blockedDomains' => array(),
+            )
+        );
 
         if (isset($config[$key])) {
             return $config[$key];
@@ -40,7 +46,7 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
         return false;
     }
 
-    public function getConfig($config, $storeId = null)
+    public function getConfig($config, $websiteId = null, $storeId = null)
     {
         $path = self::TRUSTPILOT_SETTINGS . $config;
         $setting = null;
@@ -49,27 +55,32 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
             $storeId = self::getStoreId();
         }
 
+        if ($websiteId == null) {
+            $websiteId = self::getWebsiteId();
+        }
+
         if ($storeId) {
             $setting =  Mage::app()->getStore($storeId)->getConfig($path);
         } else {
             if ($config == 'past_orders' || $config == 'failed_orders') {
                 try {
-                    $setting = $this->getWebsiteConfigWithSql($path);
+                    $setting = $this->getWebsiteConfigWithSql($path, $websiteId);
+                } catch (\Throwable $e) {
                 } catch (\Exception $e) {}
             }
             if (!$setting) {
-                $setting = Mage::app()->getWebsite(self::getWebsiteId())->getConfig($path);
+                $setting = Mage::app()->getWebsite($websiteId)->getConfig($path);
             }
         }
 
         return $setting ? $setting : $this->getDefaultConfigValues($config);
     }
 
-    private function getWebsiteConfigWithSql($path)
+    public function getWebsiteConfigWithSql($path, $websiteId)
     {
         $connection = Mage::getModel('core/resource')->getConnection('core_read');
-        $table = $connection->getTableName('core/config_data');
-        $sql = "SELECT * FROM `{$table}` WHERE `scope` = 'websites' AND `path` = '" . $path . "' AND `scope_id` = " . self::getWebsiteId();
+        $table = $connection->getTableName('core_config_data');
+        $sql = "SELECT * FROM `{$table}` WHERE `scope` = 'websites' AND `path` = '" . $path . "' AND `scope_id` = " . $websiteId;
         $values = $connection->fetchAll($sql);
         return count($values) ? $values[0]['value'] : false;
     }
@@ -137,16 +148,11 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
 
     public function loadSelector($product, $selector, $childProducts = null)
     {
-        switch ($selector) {
-            case 'id':
-                return (string) $product->getId();
-            default:
-                $attrValues = $this->loadOrderChildProducts($childProducts, $selector);
-                if (!empty($attrValues)) {
-                    return implode(',', $attrValues);
-                } else {
-                    return $this->loadAttributeValue($product, $selector);
-                }
+        $attrValues = $this->loadOrderChildProducts($childProducts, $selector);
+        if (!empty($attrValues)) {
+            return implode(',', $attrValues);
+        } else {
+            return $this->loadAttributeValue($product, $selector);
         }
     }
 
@@ -168,6 +174,9 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
     private function loadAttributeValue($product, $selector)
     {
         try {
+            if ($selector == 'id') {
+                return (string) $product->getId();
+            }
             if ($attribute = $product->getResource()->getAttribute($selector)) {
                 $data = $product->getData($selector);
                 $label = $attribute->getSource()->getOptionText($data);
@@ -289,21 +298,26 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
                 default:
                     return Mage::app()->getStore($storeId)->getUrl();
             }
+        } catch (Throwable $e) {
+            Mage::log('Unable to find URL for a page ' . $value . '. Error: ' . $e->getMessage());
+            return Mage::getBaseUrl();
         } catch (Exception $e) {
             Mage::log('Unable to find URL for a page ' . $value . '. Error: ' . $e->getMessage());
-
             return Mage::getBaseUrl();
         }
     }
 
-    public function log($message)
+    public function log($message, $e, $method, $optional = array())
     {
         Mage::log($message);
         $log = array(
+            'error' => $e->getMessage(),
             'platform' => 'Magento1',
             'version'  => Trustpilot_Reviews_Model_Config::TRUSTPILOT_PLUGIN_VERSION,
-            'key'      => self::getKey(),
-            'message'  => $message,
+            'description'  => $message,
+            'method'  => $method,
+            'trace' => $e->getTraceAsString(),
+            'variables' => $optional
         );
         Mage::helper('trustpilot/TrustpilotHttpClient')->postLog($log);
     }
@@ -322,11 +336,11 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
                     break;
                 }
             }
-            foreach ($dynamicFields as $field) {             
+            foreach ($dynamicFields as $field) {
                 if (stripos($attr, $field) !== false && !in_array($attr, $fields)) {
                     array_push($fields, $attr);
                     break;
-                }	                
+                }
             }
         }
 
@@ -343,4 +357,64 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
         return $attr;
     }
 
+    public function getBusinessInformation($websiteId, $storeId) {
+        try {
+            if ($storeId) {
+                $store = Mage::app()->getStore($storeId);
+                $useSecure = $store->getConfig('web/secure/use_in_frontend');
+                $url = $store->getConfig('web/'. ($useSecure ? 'secure' : 'unsecure') .'/base_url');
+                return array(
+                    'website' => parse_url($url, PHP_URL_HOST),
+                    'company' => $store->getConfig('general/store_information/name'),
+                    'name' => $store->getConfig('trans_email/ident_general/name'),
+                    'email' => $store->getConfig('trans_email/ident_general/email'),
+                    'phone' => $store->getConfig('general/store_information/phone'),
+                    'country' => $store->getConfig('general/store_information/merchant_country'),
+                );
+            } else if ($websiteId) {
+                $website = Mage::app()->getWebsite($websiteId);
+                $useSecure = $website->getConfig('web/secure/use_in_frontend');
+                $url = $website->getConfig('web/'. ($useSecure ? 'secure' : 'unsecure') .'/base_url');
+                return array(
+                    'website' => parse_url($url, PHP_URL_HOST),
+                    'company' => $website->getConfig('general/store_information/name'),
+                    'name' => $website->getConfig('trans_email/ident_general/name'),
+                    'email' => $website->getConfig('trans_email/ident_general/email'),
+                    'phone' => $website->getConfig('general/store_information/phone'),
+                    'country' => $website->getConfig('general/store_information/merchant_country'),
+                );
+            } else {
+                $useSecure = Mage::getStoreConfig('web/secure/use_in_frontend');
+                $url = Mage::getStoreConfig('web/'. ($useSecure ? 'secure' : 'unsecure') .'/base_url');
+                return array(
+                    'website' => parse_url($url, PHP_URL_HOST),
+                    'company' => Mage::getStoreConfig('general/store_information/name'),
+                    'name' => Mage::getStoreConfig('trans_email/ident_general/name'),
+                    'email' => Mage::getStoreConfig('trans_email/ident_general/email'),
+                    'phone' => Mage::getStoreConfig('general/store_information/phone'),
+                    'country' => Mage::getStoreConfig('general/store_information/merchant_country'),
+                );
+            }
+        } catch (\Throwable $e) {
+            $this->log('Error on collecting signup data', $e, 'getBusinessInformation');
+            return array();
+        } catch (\Exception $e) {
+            $this->log('Error on collecting signup data', $e, 'getBusinessInformation');
+            return array();
+        }
+    }
+
+    public function getOrigin($websiteId = null, $storeId = null)
+    {
+        if ($storeId) {
+            $secure = Mage::getStoreConfig(Mage_Core_Model_Url::XML_PATH_SECURE_IN_FRONT, $storeId);
+            $param = $secure ? Mage_Core_Model_Url::XML_PATH_SECURE_URL : Mage_Core_Model_Url::XML_PATH_UNSECURE_URL;
+            return Mage::getStoreConfig($param, $storeId);
+        }
+        $origin = null;
+        if ($websiteId) {
+            $origin = $this->getWebsiteConfigWithSql('web/unsecure/base_url', $websiteId);
+        }
+        return $origin != null ? $origin : Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB);
+    }
 }

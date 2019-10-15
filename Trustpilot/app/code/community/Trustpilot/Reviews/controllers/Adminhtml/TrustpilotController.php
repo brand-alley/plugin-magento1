@@ -45,7 +45,8 @@
                         'StartingUrl' => $this->getStartingUrl(),
                         'Sku' => $this->getSku(),
                         'ProductName' => $this->getProductName(),
-                        'ConfigurationScopeTree' => $this->getConfigurationScopeTree()
+                        'ConfigurationScopeTree' => $this->getConfigurationScopeTree(),
+                        'PluginStatus' => $this->getPluginStatus()
                     )
                 )
                 ->setTemplate(static::CODE_TEMPLATE);
@@ -80,20 +81,20 @@
                     break;
                 case 'handle_past_orders':
                     if (array_key_exists('sync', $post)) {
-                        $this->_pastOrders->sync($post["sync"]);
+                        $this->_pastOrders->sync($post["sync"], $websiteId, $storeId);
                         $output = $this->_pastOrders->getPastOrdersInfo();
                         $output['basis'] = 'plugin';
                         $output['pastOrders']['showInitial'] = false;
                         $this->getResponse()->setBody(json_encode($output));
                         break;
                     } else if (array_key_exists('resync', $post)) {
-                        $this->_pastOrders->resync();
+                        $this->_pastOrders->resync($websiteId, $storeId);
                         $output = $this->_pastOrders->getPastOrdersInfo();
                         $output['basis'] = 'plugin';
                         $this->getResponse()->setBody(json_encode($output));
                         break;
                     } else if (array_key_exists('issynced', $post)) {
-                        $output = $this->_pastOrders->getPastOrdersInfo();
+                        $output = $this->_pastOrders->getPastOrdersInfo($websiteId, $storeId);
                         $output['basis'] = 'plugin';
                         $this->getResponse()->setBody(json_encode($output));
                         break;
@@ -102,6 +103,10 @@
                         $this->getResponse()->setBody('true');
                         break;
                     }
+                    break;
+                case 'get_signup_data':
+                    $results = base64_encode(json_encode($this->_helper->getBusinessInformation($websiteId, $storeId)));
+                    $this->getResponse()->setBody($results);
                     break;
                 case 'update_trustpilot_plugin':
                     $plugins = array(
@@ -166,8 +171,11 @@
                 if ($product) {
                     $skuSelector = json_decode($this->_helper->getConfig('master_settings_field'))->skuSelector;
                     if ($skuSelector == 'none') $skuSelector = 'sku';
-                    return $this->_helper->loadSelector($product, $skuSelector);
+                    $productId = Trustpilot_Reviews_Model_Config::TRUSTPILOT_PRODUCT_ID_PREFIX . $product->getId();
+                    return $this->_helper->loadSelector($product, $skuSelector) . ', ' . $productId;
                 }
+            } catch (Throwable $exception) {
+                return '';
             } catch (Exception $exception) {
                 return '';
             }
@@ -176,6 +184,8 @@
         private function getProductName() {
             try {
                 return $this->_helper->getFirstProduct()->getName();
+            } catch (Throwable $exception) {
+                return '';
             } catch (Exception $exception) {
                 return '';
             }
@@ -185,5 +195,9 @@
             $info = $this->_pastOrders->getPastOrdersInfo();
             $info['basis'] = 'plugin';
             return json_encode($info);
+        }
+
+        public function getPluginStatus() {
+            return base64_encode($this->_helper->getConfig('plugin_status'));
         }
     }

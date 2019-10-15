@@ -19,7 +19,7 @@
         $response = array();
         $response['code'] = $responseCode;
         if (is_object($responseData) || is_array($responseData)) {
-                $response['data'] = $responseData;
+            $response['data'] = $responseData;
         }
         return $response;
     }

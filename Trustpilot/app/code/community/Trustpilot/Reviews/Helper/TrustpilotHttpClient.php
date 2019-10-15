@@ -1,53 +1,70 @@
 <?php
- 
+
  class Trustpilot_Reviews_Helper_TrustpilotHttpClient
  {
     private $_helper;
     private $_httpClient;
+    private $_pluginStatus;
+    private $_apiUrl;
 
     public function __construct()
     {
         $this->_helper = Mage::helper('trustpilot/Data');
         $this->_httpClient = Mage::helper('trustpilot/HttpClient');
-        $this->apiUrl = Trustpilot_Reviews_Model_Config::TRUSTPILOT_API_URL;
+        $this->_pluginStatus = Mage::helper('trustpilot/TrustpilotPluginStatus');
+        $this->_apiUrl = Trustpilot_Reviews_Model_Config::TRUSTPILOT_API_URL;
     }
 
-    public function post($url, $data)
+    public function post($url, $data, $origin, $websiteId, $storeId)
     {
-        $origin = Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB);
-        $httpRequest = "POST";
-        return $this->_httpClient->request(
+        $httpRequest = 'POST';
+        $response = $this->_httpClient->request(
             $url,
             $httpRequest,
             $origin,
             $data
         );
+
+        if ($response['code'] > 250 && $response['code'] < 254) {
+            $this->_pluginStatus->setPluginStatus($response, $websiteId, $storeId);
+        }
+
+        return $response;
     }
 
     public function buildUrl($key, $endpoint)
     {
-        return $this->apiUrl . $key . $endpoint;
+        return $this->_apiUrl . $key . $endpoint;
     }
 
-    public function postInvitation($key, $data = array())
+    public function checkStatusAndPost($url, $data, $websiteId, $storeId)
     {
-        return $this->post($this->buildUrl($key, '/invitation'), $data);
+        $origin = $this->_helper->getOrigin($websiteId, $storeId);
+        $code = $this->_pluginStatus->checkPluginStatus($origin, $websiteId, $storeId);
+        if ($code > 250 && $code < 254) {
+            return array(
+                'code' => $code,
+            );
+        }
+        return $this->post($url, $data, $origin, $websiteId, $storeId);
     }
 
-    public function postBatchInvitations($key, $data = array())
+    public function postInvitation($key, $websiteId, $storeId, $data = array())
     {
-        return $this->post($this->buildUrl($key, '/batchinvitations'), $data);
+        return $this->checkStatusAndPost($this->buildUrl($key, '/invitation'), $data, $websiteId, $storeId);
     }
 
-    public function postSettings($key, $data = array())
+    public function postBatchInvitations($key, $websiteId, $storeId, $data = array())
     {
-        return $this->post($this->buildUrl($key, '/settings'), $data);
+        return $this->checkStatusAndPost($this->buildUrl($key, '/batchinvitations'), $data, $websiteId, $storeId);
     }
 
     public function postLog($data)
     {
         try {
-            return $this->post($this->apiUrl . 'log', $data);
+            return $this->post($this->_apiUrl . 'log', $data, '*', null, null);
+        } catch (Throwable $e) {
+            return false;
         } catch (Exception $e) {
             return false;
         }

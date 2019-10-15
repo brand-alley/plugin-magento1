@@ -17,7 +17,20 @@
 <script>
     var websiteId = "<?php echo $this->getWebsiteId(); ?>";
     var storeId = "<?php echo $this->getStoreId(); ?>";
-    var ajaxUrl = "<?php echo Mage::helper("adminhtml")->getUrl("/trustpilot/ajax"); ?>";
+    var ajaxUrl = "<?php echo Mage::helper("adminhtml")->getUrl("adminhtml/trustpilot/ajax"); ?>";
+</script>
+<script type="text/javascript">
+    function onTrustpilotIframeLoad() {
+        if (typeof sendSettings === "function" && typeof sendPastOrdersInfo === "function") {
+            sendSettings();
+            sendPastOrdersInfo();
+        } else {
+            window.addEventListener('load', function () {
+                sendSettings();
+                sendPastOrdersInfo();
+            });
+        }
+    }
 </script>
 <div class='wrap' tabindex="0">
     <iframe
@@ -37,7 +50,8 @@
         data-product-identification-options = '<?php echo $this->getProductIdentificationOptions(); ?>'
         data-configuration-scope-tree = '<?php echo $this->getConfigurationScopeTree(); ?>'
         data-is-from-marketplace = '<?php echo Trustpilot_Reviews_Model_Config::TRUSTPILOT_IS_FROM_MARKETPLACE ?>'
-        onload='sendSettings();sendPastOrdersInfo();'>
+        data-plugin-status = '<?php echo $this->getPluginStatus(); ?>'
+        onload='onTrustpilotIframeLoad();'>
     </iframe>
     <div id='trustpilot-trustbox-preview'
         hidden='true'
