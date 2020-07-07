@@ -192,6 +192,72 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
         }
     }
 
+    public function getLayer()
+    {
+        $layer = Mage::registry('current_layer');
+        if ($layer) {
+            return $layer;
+        }
+        return Mage::getSingleton('catalog/layer');
+    }
+
+    public function loadCategoryProductInfo() {
+        $settings = json_decode($this->getConfig('master_settings_field'));
+        $skuSelector = $settings->skuSelector;
+        $productList = $variationSkus = $variationIds = array();
+        $ajax = false;
+        if (Mage::registry('current_category')) {
+            $current_category = Mage::registry('current_category');
+            $layer = $this->getLayer();
+            $layer->setCurrentCategory($current_category);
+            $limit = Mage::app()->getRequest()->getParam('limit')
+                ? Mage::app()->getRequest()->getParam('limit')
+                : Mage::getStoreConfig('catalog/frontend/grid_per_page');
+            $page = Mage::app()->getRequest()->getParam('p')
+                ? Mage::app()->getRequest()->getParam('p')
+                : 1;
+            $products = $layer->getProductCollection()
+                ->setPage($page)
+                ->setPageSize($limit);
+        } else {
+            $ajax = true;
+            $current_category = $this->getFirstCategory();
+            $products = $current_category->getProductCollection();
+            $products->addAttributeToSelect('*');
+            $products->addAttributeToFilter('status', 1);
+            $products->addFieldToFilter(array(array('attribute'=>'visibility', 'neq'=>"1" )));
+            $products->addUrlRewrite($current_category->getId()); 
+            $products->getSelect()->limit(Mage::getStoreConfig('catalog/frontend/grid_per_page'));
+        }
+
+        foreach ($products->getItems() as $product) {
+            if ($product->isConfigurable()) {
+                $conf = Mage::getModel('catalog/product_type_configurable')->setProduct($product);
+                $childProducts = $conf->getUsedProductCollection()->addAttributeToSelect('*')->addFilterByRequiredOptions();
+                $variationSkus = $skuSelector  != 'id' ? $this->loadSelector($product, $skuSelector, $childProducts) : array();
+                $variationIds = $this->loadSelector($product, 'id', $childProducts);
+            }
+            $sku = $skuSelector  != 'id' ? $this->loadSelector($product, $skuSelector) : '';
+            $id = $this->loadSelector($product, 'id');
+            array_push($productList, array(
+                "sku" => $sku,
+                "id" => $id,
+                "variationIds" => explode(',', $variationIds),
+                "variationSkus" => explode(',', $variationSkus),
+                "productUrl" => $ajax ? 
+                    $this->getFullProductUrl($product, $current_category->getId()) : $product->getProductUrl(),
+                "name" => $product->getName(),
+            ));
+        }
+        return $productList;
+    }
+
+    public function getFullProductUrl(Mage_Catalog_Model_Product $product = null, $catId = 0){
+        $storeId = $this->getStoreIdOrDefault();
+        return Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB) . Mage::getResourceModel('core/url_rewrite')
+        ->getRequestPathByIdPath('product/'. $product->getId() . '/' . $catId, $storeId);
+    }
+
     public function getFirstProduct($storeId = null) {
         $storeId = $storeId == null ? $this->getStoreIdOrDefault() : $storeId;
         return Mage::getModel('catalog/product')
@@ -202,6 +268,8 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
             ->addAttributeToFilter('url_key', array('notnull' => true))
             ->addAttributeToFilter('visibility', array(2, 3, 4))
             ->addUrlRewrite()
+            ->setPageSize(1)
+            ->setCurPage(1)
             ->getFirstItem();
     }
 
@@ -253,6 +321,32 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
         return base64_encode(json_encode($urls));
     }
 
+    public function getFirstCategory() {
+        $attributes = Mage::getModel('catalog/category')->getAttributes();
+        if (isset($attributes['children_count'])) {
+            return Mage::getModel('catalog/category')
+            ->getCollection()
+            ->addAttributeToSelect('*')
+            ->addAttributeToFilter('is_active', 1)
+            ->addAttributeToFilter('url_key', array('notnull' => true))
+            ->addAttributeToFilter('children_count', 0)
+            ->addUrlRewriteToResult()
+            ->setPageSize(1)
+            ->setCurPage(1)
+            ->getFirstItem();
+        } else if (isset($attributes['children'])) {
+            return  Mage::getModel('catalog/category')
+                ->getCollection()
+                ->addAttributeToSelect('*')
+                ->addAttributeToFilter('is_active', 1)
+                ->addAttributeToFilter('url_key', array('notnull' => true))
+                ->addAttributeToFilter('children', null)
+                ->setPageSize(1)
+                ->setCurPage(1)
+                ->getFirstItem();
+        }
+    }
+
     public function getPageUrl($value)
     {
         try {
@@ -261,28 +355,8 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
                 case 'trustpilot_trustbox_homepage':
                     return Mage::app()->getStore($storeId)->getUrl();
                 case 'trustpilot_trustbox_category':
-                    $attributes = Mage::getModel('catalog/category')->getAttributes();
-                    if (isset($attributes['children_count'])) {
-                        $urlPath = Mage::getModel('catalog/category')
-                            ->getCollection()
-                            ->addAttributeToSelect('*')
-                            ->addAttributeToFilter('is_active', 1)
-                            ->addAttributeToFilter('url_key', array('notnull' => true))
-                            ->addAttributeToFilter('children_count', 0)
-                            ->addUrlRewriteToResult()
-                            ->getFirstItem()
-                            ->getUrlPath();
-                    } else if (isset($attributes['children'])) {
-                        $urlPath = Mage::getModel('catalog/category')
-                            ->getCollection()
-                            ->addAttributeToSelect('*')
-                            ->addAttributeToFilter('is_active', 1)
-                            ->addAttributeToFilter('url_key', array('notnull' => true))
-                            ->addAttributeToFilter('children', null)
-                            ->addUrlRewriteToResult()
-                            ->getFirstItem()
-                            ->getUrlPath();
-                    }
+                    $firstCategory = $this->getFirstCategory();
+                    $urlPath = $firstCategory->getUrlPath();
                     $url = Mage::getUrl($urlPath, array(
                         '_use_rewrite' => true,
                         '_secure' => true,
@@ -299,10 +373,10 @@ class Trustpilot_Reviews_Helper_Data extends Mage_Core_Helper_Abstract
                     return Mage::app()->getStore($storeId)->getUrl();
             }
         } catch (Throwable $e) {
-            Mage::log('Unable to find URL for a page ' . $value . '. Error: ' . $e->getMessage());
+            $this->log('Unable to find page URL', $e, 'getPageUrl', array('value' => $value));
             return Mage::getBaseUrl();
         } catch (Exception $e) {
-            Mage::log('Unable to find URL for a page ' . $value . '. Error: ' . $e->getMessage());
+            $this->log('Unable to find page URL', $e, 'getPageUrl', array('value' => $value));
             return Mage::getBaseUrl();
         }
     }

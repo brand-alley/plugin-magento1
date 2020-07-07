@@ -1,5 +1,3 @@
-@import 'trustpilot-message.css';
-
 #trustpilot_trustpilot_general_group > table > tbody > tr > td.label > label {
     width: 0px;
 }

@@ -23,7 +23,7 @@ class Trustpilot_Reviews_Helper_TrustpilotPluginStatus
         $this->_helper->setConfig('plugin_status', $data, $websiteId, $storeId);
     }
 
-    public function checkPluginStatus($origin, $websiteId, $storeId)
+    public function checkPluginStatus($origin, $websiteId = null, $storeId = null)
     {
         $data = json_decode($this->_helper->getConfig('plugin_status', $websiteId, $storeId));
 

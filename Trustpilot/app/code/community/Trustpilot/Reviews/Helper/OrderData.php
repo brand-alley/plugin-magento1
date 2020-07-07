@@ -38,8 +38,6 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
             $failed_orders = json_decode($this->_helper->getConfig('failed_orders'));
 
             if ($response['code'] == 201) {
-                $synced_orders = (int)($synced_orders + 1);
-                $this->_helper->setConfig('past_orders', $synced_orders);
                 if (isset($failed_orders->{$order['referenceId']})) {
                     unset($failed_orders->{$order['referenceId']});
                     $this->_helper->setConfig('failed_orders', json_encode($failed_orders));
@@ -98,6 +96,19 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
 
         return $skus;
     }
+    
+    private function stripAllTags($string, $remove_breaks = false)
+    {
+        if (gettype($string) != 'string') {
+            return '';
+        }
+        $string = preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', $string);
+        $string = strip_tags($string);
+        if ($remove_breaks) {
+            $string = preg_replace('/[\r\n\t ]+/', ' ', $string);
+        }
+        return trim($string);
+    }
 
     public function getProducts($order)
     {
@@ -109,14 +120,15 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
             $mpnSelector = $settings->mpnSelector;
             $currency = $order->getOrderCurrencyCode();
             $items = $order->getAllVisibleItems();
+            $productModel = Mage::getModel('catalog/product')->setStoreId($order->getStoreId());
             foreach ($items as $i) {
-                $product = Mage::getModel('catalog/product')->load($i->getProductId());
+                $product = $productModel->load($i->getProductId());
 
                 $childProducts = array();
                 if ($i->getHasChildren()) {
                     $orderChildItems = $i->getChildrenItems();
                     foreach ($orderChildItems as $item) {
-                        array_push($childProducts, $item->getProduct());
+                        array_push($childProducts, $productModel->load($item->getProductId()));
                     }
                 }
                 $manufacturer = $this->_helper->loadSelector($product, 'manufacturer', $childProducts);
@@ -124,6 +136,7 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
                 $mpn = $this->_helper->loadSelector($product, $mpnSelector, $childProducts);
                 $gtin = $this->_helper->loadSelector($product, $gtinSelector, $childProducts);
                 $productId = $this->_helper->loadSelector($product, 'id', $childProducts);
+                $productDescription = html_entity_decode($this->stripAllTags($product->getDescription(), true));
 
                 array_push(
                     $products,
@@ -131,13 +144,13 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
                         'price' => $product->getFinalPrice() ?: 0,
                         'currency' => $currency,
                         'categories' => $this->getProductCategories($product, $childProducts),
-                        'description' => strip_tags($product->getDescription()) ?: '',
+                        'description' => $productDescription, 
                         'images' => $this->getAllImages($product, $childProducts),
                         'tags' => $this->getAllTags($product, $childProducts),
                         'meta' => array(
                             'title' => $product->getMetaTitle() ?: $product->getName() ?: '',
-                            'keywords' => $product->getMetaKeyword() ?: $product->getName() ?: '',
-                            'description' => $product->getMetaDescription() ?: substr(strip_tags($product->getDescription()), 0, 255) ?: '',
+                            'keywords' => $product->getMetaKeyword() ?: $product->getName() ?: '',    
+                            'description' => html_entity_decode($this->stripAllTags($product->getMetaDescription(), true)) ?: substr($productDescription, 0, 255) ?: '',
                         ),
                         'manufacturer' => $manufacturer ?: '',
                         'productUrl' => $product->getProductUrl() ?: '',
@@ -222,18 +235,24 @@ class Trustpilot_Reviews_Helper_OrderData extends Mage_Core_Helper_Abstract
 
     function getTags($product) {
         $tagArray = array();
-        $model = Mage::getModel('tag/tag');
-        $tagCollection= $model->getResourceCollection()
-                ->addPopularity()
-                ->addStatusFilter($model->getApprovedStatus())
-                ->addProductFilter($product->getId())
-                ->setFlag('relation', true)
-                ->addStoreFilter(Mage::app()->getStore()->getId())
-                ->setActiveFilter()
-                ->load();
-        $tags=$tagCollection->getItems();
-        foreach ($tags as $tag) {
-            array_push($tagArray, $tag->getName());
+        try {
+            $model = Mage::getModel('tag/tag');
+            $tagCollection= $model->getResourceCollection()
+                    ->addPopularity()
+                    ->addStatusFilter($model->getApprovedStatus())
+                    ->addProductFilter($product->getId())
+                    ->setFlag('relation', true)
+                    ->addStoreFilter(Mage::app()->getStore()->getId())
+                    ->setActiveFilter()
+                    ->load();
+            $tags=$tagCollection->getItems();
+            foreach ($tags as $tag) {
+                array_push($tagArray, $tag->getName());
+            }
+        } catch (\Throwable $e) {
+            $this->_helper->log('Unable to extract tags', $e, 'getTags');
+        } catch (\Exception $e) {
+            $this->_helper->log('Unable to extract tags', $e, 'getTags');
         }
         return $tagArray;
     }

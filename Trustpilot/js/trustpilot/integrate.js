@@ -58,6 +58,9 @@ function receiveInternalData(e) {
     const data = e.data;
     if (data && typeof data === 'string') {
         const jsonData = JSONParseSafe(data);
+        if (jsonData && jsonData.type === 'loadCategoryProductInfo') {
+            requestCategoryInfo();
+        }
         if (jsonData && jsonData.type === 'updatePageUrls') {
             submitSettings(jsonData);
         }
@@ -65,6 +68,34 @@ function receiveInternalData(e) {
             submitSettings(jsonData);
         }
     }
+}
+
+function requestCategoryInfo() {
+    const data = {
+        action: 'get_category_product_info',
+        form_key: window.FORM_KEY,
+    };
+
+    if (typeof websiteId !== 'undefined') {
+        data.website_id = websiteId;
+    }
+    if (typeof storeId !== 'undefined') {
+        data.store_id = storeId;
+    }
+
+    const xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status >= 400) {
+                console.log(`callback error: ${xhr.response} ${xhr.status}`);
+            } else {
+                window.postMessage(xhr.response, window.origin);
+            }
+        }
+    }
+    xhr.open('POST', ajaxUrl);
+    xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    xhr.send(encodeSettings(data));
 }
 
 function handleJSONMessage(data) {
@@ -253,11 +284,27 @@ function updateIframeSize(settings) {
   }
 }
 
+function isJson(str) {
+    try {
+        JSON.parse(str);
+    } catch (e) {
+        return false;
+    }
+    return true;
+}
+
 function sendSettings() {
     const iframe = document.getElementById('configuration_iframe');
 
     const attrs = iframe.dataset;
-    const settings = JSON.parse(atob(attrs.settings));
+    let decodedSetings = atob(attrs.settings);
+    if (!isJson(decodedSetings)) {
+        try {
+          decodedSetings = decodedSetings.substring(0, decodedSetings.indexOf(`,"failed"`)) + `,"failed":{}}}`;
+        }
+        catch { }
+    }
+    const settings = JSON.parse(decodedSetings);
 
     if (!settings.trustbox) {
         settings.trustbox = {}

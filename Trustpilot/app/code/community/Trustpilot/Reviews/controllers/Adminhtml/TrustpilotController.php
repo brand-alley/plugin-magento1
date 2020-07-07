@@ -128,6 +128,12 @@
                     $result->skuScannerResults = $this->_products->checkSkus($post["skuSelector"]);
                     $this->getResponse()->setBody(json_encode($result));
                     break;
+                case 'get_category_product_info':
+                    $result = new stdClass();
+                    $result->categoryProductsData = base64_encode(json_encode($this->_helper->loadCategoryProductInfo()));
+                    $result->basis = 'plugin';
+                    $this->getResponse()->setBody(json_encode($result));
+                    break;
             }
         }
 

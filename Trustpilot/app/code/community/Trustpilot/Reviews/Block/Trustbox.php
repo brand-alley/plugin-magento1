@@ -31,6 +31,9 @@ class Trustpilot_Reviews_Block_Trustbox extends Mage_Core_Block_Template
                 }
                 else if (Mage::registry('current_category')) {
                     $loadedTrustboxes = array_merge((array)$this->loadPageTrustboxes($settings, 'category'), (array)$loadedTrustboxes);
+                    if ($this->repeatData($loadedTrustboxes)) {
+                        $settings->categoryProductsData = $this->_helper->loadCategoryProductInfo();
+                    }
                 }
                 if (Mage::getBlockSingleton('page/html_header')->getIsHomePage() ||
                         Mage::getSingleton('cms/page')->getIdentifier() == $homePageId) {
@@ -48,6 +51,15 @@ class Trustpilot_Reviews_Block_Trustbox extends Mage_Core_Block_Template
             $this->_helper->log('Error checking all the TrustBoxes', $e, 'loadTrustboxes');
         }
         return '{"trustboxes":[]}';
+    }
+
+    private function repeatData($trustBoxes) {
+        foreach ($trustBoxes as $trustbox) {
+            if ($trustbox->repeat) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private function loadPageTrustboxes($settings, $page)
