@@ -1,0 +1,6 @@
+{
+    "name": "brand-alley/trustpilot",
+    "description": "Trustpilot implementation for Magento",
+    "license": "tobedefined",
+    "type": "magento-module"
+}

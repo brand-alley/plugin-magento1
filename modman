@@ -1,0 +1,8 @@
+Trustpilot/app/code/community/Trustpilot/*                 app/code/community/Trustpilot/
+Trustpilot/app/design/adminhtml/default/default/layout/trustpilot/*    app/design/adminhtml/default/default/layout/trustpilot/
+Trustpilot/app/design/adminhtml/default/default/template/trustpilot/*  app/design/adminhtml/default/default/template/trustpilot/
+Trustpilot/app/design/frontend/base/default/layout/trustpilot/*        app/design/frontend/base/default/layout/trustpilot/
+Trustpilot/app/design/frontend/base/default/template/trustpilot/*      app/design/frontend/base/default/template/trustpilot/
+Trustpilot/app/etc/modules/*                               app/etc/modules/
+Trustpilot/js/trustpilot/*                                 js/trustpilot/
+Trustpilot/skin/adminhtml/default/default/trustpilot/*     skin/adminhrml/default/default/trustpilot/
